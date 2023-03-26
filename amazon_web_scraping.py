@@ -33,6 +33,12 @@ product_name = new_soup.find("span",attrs={'id':'productTitle','class':'a-size-l
 
 product_price = new_soup.find("span",attrs={'class':'a-price-whole'}).text.strip('.')
 
+product_rating = new_soup.find("span",attrs={'class':'a-icon-alt'}).text
+
+product_review = new_soup.find("span",attrs={'id':'acrCustomerReviewText'}).text
+
+print(product_review)
+
 
 
 
