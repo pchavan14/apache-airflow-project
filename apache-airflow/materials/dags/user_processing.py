@@ -3,13 +3,14 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 import json
 from pandas import json_normalize
 from datetime import datetime
 
 def _process_user_(ti):
-    user = ti.xcom_pull(task_ids = "extract_user")
+    user = ti.xcom_pull(task_ids="extract_user")
     user = user['results'][0]
     processed_user = json_normalize({
         'firstname': user['name']['first'],
@@ -19,7 +20,14 @@ def _process_user_(ti):
         'password': user['login']['password'],
         'email': user['email']
     })
-    processed_user.to_csv('tmp/processed_user.csv',header=False,index=None)
+    processed_user.to_csv('/tmp/processed_user.csv',header=False,index=None)
+
+def _store_user():
+    hook = PostgresHook(postgres_conn_id='postgres')
+    hook.copy_expert(
+        sql = "COPY users FROM stdin WITH DELIMITER as ','",
+        filename='/tmp/processed_user.csv'
+    )
 
 
 #catchup = do we want to run the previous data
@@ -63,6 +71,15 @@ with DAG('user_processing', start_date=datetime(2022,1,1),schedule_interval='@da
         python_callable = _process_user_
 
     )
+
+    store_user = PythonOperator(
+        task_id = 'store_user',
+        python_callable = _store_user
+    )
+
+    create_table >> is_api_available >> extract_user >> process_user >> store_user
+
+   
 
     
 
